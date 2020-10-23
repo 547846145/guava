@@ -72,15 +72,22 @@ final class SubscriberRegistry {
   }
 
   /** Registers all subscriber methods on the given listener object. */
+  /**
+   *
+   *   监听者   类级别   listener
+   *   订阅者   方法级别 subscriber  由 EventBus, 监听类 listener 目标方法  method    以及线程池 executor
+   *
+   */
   void register(Object listener) {
+    //根据监听类找到所有订阅的方法以键值对形式呈现   键值为入参，值为方法
     Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
-
+    //遍历键值对
     for (Entry<Class<?>, Collection<Subscriber>> entry : listenerMethods.asMap().entrySet()) {
       Class<?> eventType = entry.getKey();
       Collection<Subscriber> eventMethodsInListener = entry.getValue();
-
+      //根据事件（入参）获取订阅者 subscriber(可能有多个）
       CopyOnWriteArraySet<Subscriber> eventSubscribers = subscribers.get(eventType);
-
+      //为空，需要新建一个键值对
       if (eventSubscribers == null) {
         CopyOnWriteArraySet<Subscriber> newSet = new CopyOnWriteArraySet<>();
         eventSubscribers =
@@ -92,6 +99,7 @@ final class SubscriberRegistry {
   }
 
   /** Unregisters all subscribers on the given listener object. */
+
   void unregister(Object listener) {
     Multimap<Class<?>, Subscriber> listenerMethods = findAllSubscribers(listener);
 
@@ -159,6 +167,8 @@ final class SubscriberRegistry {
 
   /**
    * Returns all subscribers for the given listener grouped by the type of event they subscribe to.
+   * 根据监听者找到所有订阅者
+   * 注册和取消注册的的时候都使用
    */
   private Multimap<Class<?>, Subscriber> findAllSubscribers(Object listener) {
     Multimap<Class<?>, Subscriber> methodsInListener = HashMultimap.create();
@@ -171,6 +181,9 @@ final class SubscriberRegistry {
     return methodsInListener;
   }
 
+  /**
+   * 找到所有的写了注解的方法
+   */
   private static ImmutableList<Method> getAnnotatedMethods(Class<?> clazz) {
     try {
       return subscriberMethodsCache.getUnchecked(clazz);
@@ -180,6 +193,10 @@ final class SubscriberRegistry {
     }
   }
 
+  /**
+   * 获取非缓存里面的所有添加了注解的方法
+   *
+   */
   private static ImmutableList<Method> getAnnotatedMethodsNotCached(Class<?> clazz) {
     Set<? extends Class<?>> supertypes = TypeToken.of(clazz).getTypes().rawTypes();
     Map<MethodIdentifier, Method> identifiers = Maps.newHashMap();
@@ -188,13 +205,16 @@ final class SubscriberRegistry {
         if (method.isAnnotationPresent(Subscribe.class) && !method.isSynthetic()) {
           // TODO(cgdecker): Should check for a generic parameter type and error out
           Class<?>[] parameterTypes = method.getParameterTypes();
+          //校验参数数量
           checkArgument(
               parameterTypes.length == 1,
               "Method %s has @Subscribe annotation but has %s parameters. "
                   + "Subscriber methods must have exactly 1 parameter.",
               method,
               parameterTypes.length);
-
+          /**
+           * 这是一个比较坑的点, 如果是基本数据类型要传其包装类，如果传非基本类型，我的测试类中没报错
+           */
           checkArgument(
               !parameterTypes[0].isPrimitive(),
               "@Subscribe method %s's parameter is %s. "

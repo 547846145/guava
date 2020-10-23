@@ -182,6 +182,7 @@ public class EventBus {
    *
    * @param object object whose subscriber methods should be registered.
    */
+
   public void register(Object object) {
     subscribers.register(object);
   }
@@ -207,6 +208,7 @@ public class EventBus {
    * @param event event to post.
    */
   public void post(Object event) {
+    //获取所有的订阅者关于某事件的订阅者
     Iterator<Subscriber> eventSubscribers = subscribers.getSubscribers(event);
     if (eventSubscribers.hasNext()) {
       dispatcher.dispatch(event, eventSubscribers);
